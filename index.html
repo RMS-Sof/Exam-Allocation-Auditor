@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exam Batch Audit Ledger — Subject Verification</title>
+<style>
+  :root{
+    --paper:#F6F5F1;
+    --paper-raised:#FFFFFF;
+    --ink:#1B2430;
+    --ink-soft:#5B6472;
+    --line:#D9D8D2;
+    --verified:#1F7A5C;
+    --verified-bg:#E7F3EC;
+    --pending:#C97A2B;
+    --pending-bg:#FBEEE0;
+    --accent:#2D4B73;
+    --accent-soft:#EEF2F7;
+    --mono: 'IBM Plex Mono', 'Courier New', monospace;
+    --sans: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+    --disp: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px);
+    background-size: 100% 32px;
+    color:var(--ink);
+    font-family:var(--sans);
+    min-height:100vh;
+    padding:28px 18px 60px;
+  }
+
+  .wrap{max-width:980px;margin:0 auto;}
+
+  header{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:22px 26px;
+    margin-bottom:18px;
+    position:relative;
+    overflow:hidden;
+  }
+  header::before{
+    content:"";
+    position:absolute; top:0; left:0; bottom:0;
+    width:6px; background:var(--accent);
+  }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:var(--disp);
+    font-weight:600;
+    font-size:26px;
+    margin:0 0 4px;
+    letter-spacing:-0.01em;
+  }
+  .sub{
+    color:var(--ink-soft);
+    font-size:13.5px;
+    margin:0;
+  }
+
+  .ledger-stats{
+    display:flex;
+    gap:10px;
+    margin-top:16px;
+    flex-wrap:wrap;
+  }
+  .stat{
+    font-family:var(--mono);
+    font-size:12px;
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:6px 10px;
+    background:var(--paper);
+    color:var(--ink-soft);
+  }
+  .stat b{color:var(--ink); font-size:13px;}
+  .stat.ok{border-color:var(--verified); background:var(--verified-bg); color:var(--verified);}
+  .stat.ok b{color:var(--verified);}
+
+  .tabbar{
+    display:flex;
+    gap:2px;
+    overflow-x:auto;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:4px;
+    margin-bottom:18px;
+  }
+  .tab{
+    flex:1 1 auto;
+    min-width:112px;
+    text-align:center;
+    font-family:var(--mono);
+    font-size:12.5px;
+    letter-spacing:.03em;
+    padding:11px 8px;
+    border-radius:3px;
+    cursor:pointer;
+    color:var(--ink-soft);
+    border:1px solid transparent;
+    position:relative;
+    user-select:none;
+    transition:background .12s ease, color .12s ease;
+  }
+  .tab:hover{background:var(--accent-soft);}
+  .tab.active{
+    background:var(--accent);
+    color:#fff;
+    font-weight:600;
+  }
+  .tab .count{
+    display:block;
+    font-size:10px;
+    margin-top:2px;
+    opacity:.85;
+  }
+  .tab.complete:not(.active){
+    color:var(--verified);
+    border-color:var(--verified);
+    background:var(--verified-bg);
+  }
+
+  .panel{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:22px 24px 24px;
+  }
+  .panel-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:6px;
+  }
+  .panel-title{
+    font-family:var(--disp);
+    font-size:19px;
+    font-weight:600;
+  }
+  .panel-progress-label{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .progress-track{
+    height:6px;
+    background:var(--accent-soft);
+    border-radius:3px;
+    margin:10px 0 20px;
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    background:var(--verified);
+    width:0%;
+    transition:width .25s ease;
+  }
+
+  .subject-list{
+    display:flex;
+    flex-direction:column;
+    border-top:1px solid var(--line);
+  }
+  .row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:5px 4px; 
+    border-bottom:1px solid var(--line);
+  }
+  .row:hover{background:var(--paper);}
+
+  .checkbox{
+    appearance:none;
+    -webkit-appearance:none;
+    width:20px;height:20px;
+    border:1.5px solid var(--ink-soft);
+    border-radius:3px;
+    flex:0 0 auto;
+    cursor:pointer;
+    position:relative;
+    background:#fff;
+    transition:all .12s ease;
+  }
+  .checkbox:checked{
+    background:var(--verified);
+    border-color:var(--verified);
+  }
+  .checkbox:checked::after{
+    content:"";
+    position:absolute;
+    left:6px; top:2px;
+    width:5px; height:10px;
+    border:solid white;
+    border-width:0 2px 2px 0;
+    transform:rotate(45deg);
+  }
+  .checkbox:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
+  }
+
+  .code{
+    font-family:var(--mono);
+    font-size:13.5px;
+    color:var(--ink-bold);
+    /* Corrected: Expanded geometric bounds to encapsulate the longest text vector */
+    width:185px; 
+    flex:0 0 auto;
+    white-space:nowrap; 
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .name{
+    flex:1 1 auto;
+    font-size:14.5px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    /* Corrected: Overrides Flexbox intrinsic minimums to enforce valid text truncation */
+    min-width:0; 
+  }
+  .row.checked .name{color:var(--ink-soft); }
+  
+  .status-pill{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    padding:3px 8px;
+    border-radius:20px;
+    flex:0 0 auto;
+    background:var(--pending-bg);
+    color:var(--pending);
+    border:1px solid transparent;
+    white-space:nowrap; 
+  }
+  .row.checked .status-pill{
+    background:var(--verified-bg);
+    color:var(--verified);
+  }
+
+  .panel-footer{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:18px;
+    padding-top:14px;
+    border-top:1px dashed var(--line);
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .btn{
+    font-family:var(--mono);
+    font-size:12px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    color:var(--ink);
+    padding:8px 12px;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent);}
+
+  .save-note{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--ink-soft);
+  }
+
+  @media (max-width:600px){
+    .code{display:none;}
+    h1{font-size:21px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Exam  · Total Batches Verification Utility</p>
+    <h1>Exam Subject  Audit Ledger</h1>
+    <p class="sub">Designed by Prof. Rahul M. Samant | HOD-IT, NBNSTIC.</p>
+    <div class="ledger-stats" id="overallStats"></div>
+  </header>
+
+  <div class="tabbar" id="tabbar"></div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title" id="panelTitle"></div>
+      <div class="panel-progress-label" id="panelProgressLabel"></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="panelProgressFill"></div></div>
+    <div class="subject-list" id="subjectList"></div>
+    <div class="panel-footer">
+      <button class="btn" id="markAllBtn">Mark all created</button>
+      <button class="btn" id="clearAllBtn">Clear this tab</button>
+      <span class="save-note" id="saveNote">All changes saved automatically</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SEMESTERS = [
+  {
+    key: "se_sem3",
+    label: "SE Sem 3",
+    fullLabel: "SEIT 2024 Pat  — Sem III - [ 6 Internal + 4 TW + 1 PR + 2 OR = 13 Files Marks Entries ]",
+    subjects: [
+      ["Internal  [30 Marks]","Data Structure & Algorithms"],
+      ["Internal  [30 Marks]","Object Oriented Programming "],
+      ["Internal  [30 Marks]","Basics of Computer Network"],
+      ["Termwork  [25 Marks]","Object Oriented Programming Lab"],
+      ["Oral      [25 Marks]","Object Oriented Programming Lab"],
+      ["Termwork  [25 Marks]","Data Structure & Algorithms Lab"],
+      ["Practical [50 Marks]","Data Structure & Algorithms Lab"],
+      ["Internal  [15 Marks]","Open Elective I - Digital Marketing"],
+      ["Internal  [30 Marks]","Digital Electronics & Logic Design"],
+      ["Termwork  [25 Marks]","Principles of Management & Entrepreneurship"],
+      ["Internal  [15 Marks]","Universal Human Values & Professional Ethics"],
+      ["Termwork  [25 Marks]","Community Engagement Project"],
+      ["Oral      [25 Marks]","Community Engagement Project"]
+    ]
+  },
+  {
+    key: "se_sem4",
+    label: "SE Sem 4",
+    fullLabel: "SEIT 2024 Pat — Sem IV  [ 6 Internal + 4 TW + 2 PR + 1 OR = 13 Files Marks Entries ]",
+    subjects: [
+      ["Internal  [30 Marks]","Database Management System "],
+      ["Internal  [30 Marks]","Computer Graphics "],
+      ["Internal  [30 Marks]","Probability & Statistics"],
+      ["Termwork  [25 Marks]","Database Management System Lab "],
+      ["Practical [25 Marks]","Database Management System Lab "],
+      ["Oral      [25 Marks]","Computer Graphics Lab "],
+      ["Internal  [15 Marks]","Open Elective- II - Business Analytical"],
+      ["Internal  [30 Marks]","Processor Architecture"],
+      ["Termwork  [25 Marks]","Digital Marketing & Social Media"],
+      ["Practical [25 Marks]","Digital Marketing & Social Media"],
+      ["Termwork  [50 Marks]","Modern Indian Languages"],
+      ["Termwork  [25 Marks]","E-Commerce"],
+      ["Internal  [15 Marks]","Environmental Studies"]
+    ]
+  },
+  {
+    key: "te_sem5",
+    label: "TE Sem 5",
+    fullLabel: "TE IT  — Sem V [ 6 Internal + 4 TW + 2 PR + 2 OR = 14 Files Marks Entries. ]",
+    subjects: [
+      ["Internal  [30 Marks]","Operating System "],
+      ["Internal  [30 Marks]","Artificial Intelligence & Machine Learning"],
+      ["Internal  [30 Marks]","Theory of Computation"],
+      ["Termwork  [25 Marks]","Operating System Lab 1"],
+      ["Practical [25 Marks]","Operating System Lab 1"],
+      ["Termwork  [25 Marks]","Artificial Intelligence & Machine Learning Lab 2"],
+      ["Practical [25 Marks]","Artificial Intelligence & Machine Learning Lab 2"],
+      ["Internal  [15 Marks]","Open Elective - to be decided"],
+      ["Internal  [30 Marks]","Elective-1 Cloud Computing"],
+      ["Termwork  [25 Marks]","Elective-1 Cloud Computing Lab"],
+      ["Practical [25 Marks]","Elective-1 Cloud Computing Lab"],
+      ["Termwork  [25 Marks]","IOT Based Product Development"],
+      ["Oral      [25 Marks]","IOT Based Product Development"],
+      ["Oral      [50 Marks]","Technical Seminar"]
+    ]
+  },
+  {
+    key: "te_sem6",
+    label: "TE Sem 6",
+    fullLabel: "TEIT 2024 Pat Sem VI [4 Internal + 5 TW + 3 PR + 2 OR = 14 Files Marks Entries.]", 
+    subjects: [
+      ["Internal  [30 Marks]","Data Science & Big Data Analytics "],
+      ["Internal  [30 Marks]","Software Engineering & Project Management"],
+      ["Termwork  [25 Marks]","Data Science & Big Data Analytics Lab 1"],
+      ["Practical [25 Marks]","Data Science & Big Data Analytics Lab 1"],
+      ["Termwork  [25 Marks]","Software Engineering & Project Management Lab 2"],
+      ["Practical [25 Marks]","Software Engineering & Project Management Lab 2"],
+      ["Internal  [30 Marks]","Elective II - DevOps"],
+      ["Internal  [30 Marks]","Elective III - Power BI & Tableau"],
+      ["Termwork  [25 Marks]","Elective III - Power BI & Tableau Lab"],
+      ["Practical [25 Marks]","Elective III - Power BI & Tableau Lab"],
+      ["Termwork  [25 Marks]","Multimedia & Animation"],
+      ["Oral      [25 Marks]","Multimedia & Animation"],      
+      ["Termwork  [50 Marks]","Full Stack Development with MERN"],      
+      ["Oral      [50 Marks]","Internship/OJT"]     
+    ]
+  },
+  {
+    key: "be_sem7",
+    label: "BE Sem 7",
+    fullLabel: "BEIT 2019 Pat — Sem VII  [ 5 Internal + 3 TW + 1 PR+ 1 OR + 1 Audit =11 Files Marks Entries.]",
+    subjects: [
+      ["Internal  [30 Marks]","Information Storage & Retrieval "],
+      ["Internal  [30 Marks]","Software Project Management  "],
+      ["Internal  [30 Marks]","Deep Learning"],
+      ["Internal  [30 Marks]","Elective III - Smart Computing"],
+      ["Internal  [30 Marks]","Elective IV - Introduction to DevOps"],
+      ["Termwork  [25 Marks]","Lab Practice III - ISR Lab"],
+      ["Oral      [25 Marks]","Lab Practice III - ISR Lab"],
+      ["Termwork  [25 Marks]","Lab Practice IV - DL Lab"],
+      ["Practical [25 Marks]","Lab Practice IV - DL Lab"],
+      ["Termwork  [50 Marks]","Project Stage I"],
+      ["Audit     [AC]", "Stress Management"]
+    ]
+  },
+  {
+    key: "be_sem8",
+    label: "BE Sem 8",
+    fullLabel: "BEIT 2019 Pat — Sem VIII [ 3 Internal + 4 TW + 1 PR + 2 OR + 1 Audit = 11 Files Marks entries.]",
+    subjects: [
+      ["Internal  [30 Marks]","Distributed Systems "],
+      ["Internal  [30 Marks]","Elective V - Social Computing"],
+      ["Internal  [30 Marks]","Elective VI - Business Intelligence & Analytics"],
+      ["Termwork  [50 Marks]","Startup & Entrepreneurship"],
+      ["Termwork  [25 Marks]","Lab Practice V - DS Lab"],
+      ["Practical [50 Marks]","Lab Practice V - DS Lab"],
+      ["Termwork  [25 Marks]","Lab Practice VI - BIA Lab"],
+      ["Oral      [50 Marks]","Lab Practice VI - BIA Lab"],
+      ["Oral      [50 Marks]","Project Stage II"],
+      ["Termwork  [100 Marks]","Project Stage II"],
+      ["Audit     [AC]", "Constitution of India"]
+    ] 
+  }
+];
+
+let state = {}; 
+let activeTab = SEMESTERS[0].key;
+const STORAGE_KEY = "subject-batch-audit-v2"; 
+
+function defaultState(){
+  const s = {};
+  SEMESTERS.forEach(sem => {
+    s[sem.key] = {};
+    sem.subjects.forEach((_, index) => s[sem.key][index] = false);
+  });
+  return s;
+}
+
+function loadState(){
+  state = defaultState();
+  try {
+    const res = window.localStorage.getItem(STORAGE_KEY);
+    if(res){
+      const saved = JSON.parse(res);
+      SEMESTERS.forEach(sem => {
+        sem.subjects.forEach((_, index) => {
+          if(saved[sem.key] && typeof saved[sem.key][index] === "boolean"){
+            state[sem.key][index] = saved[sem.key][index];
+          }
+        });
+      });
+    }
+  } catch(e) {
+    console.warn("Storage exception on load, reverting to default state.");
+  }
+  render();
+}
+
+let saveTimeout = null;
+function scheduleSave(){
+  const note = document.getElementById("saveNote");
+  note.textContent = "Saving…";
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      note.textContent = "All changes saved automatically";
+    } catch(e) {
+      note.textContent = "Save failed — changes kept in this session only";
+    }
+  }, 300);
+}
+
+function semCounts(sem){
+  const total = sem.subjects.length;
+  const done = sem.subjects.filter((_, index) => state[sem.key][index]).length;
+  return {total, done};
+}
+
+function renderTabs(){
+  const bar = document.getElementById("tabbar");
+  bar.innerHTML = "";
+  SEMESTERS.forEach(sem => {
+    const {total, done} = semCounts(sem);
+    const el = document.createElement("div");
+    el.className = "tab" + (sem.key === activeTab ? " active" : "") + (done === total ? " complete" : "");
+    el.innerHTML = `${sem.label}<span class="count">${done}/${total}</span>`;
+    el.addEventListener("click", () => { activeTab = sem.key; render(); });
+    bar.appendChild(el);
+  });
+}
+
+function renderOverallStats(){
+  const box = document.getElementById("overallStats");
+  let totalAll = 0, doneAll = 0;
+  const parts = SEMESTERS.map(sem => {
+    const {total, done} = semCounts(sem);
+    totalAll += total; doneAll += done;
+    return {sem, total, done};
+  });
+  box.innerHTML = "";
+  const overall = document.createElement("div");
+  overall.className = "stat" + (doneAll === totalAll ? " ok" : "");
+  overall.innerHTML = `Total <b>${doneAll} / ${totalAll}</b>`;
+  box.appendChild(overall);
+
+  parts.forEach(p => {
+    const s = document.createElement("div");
+    s.className = "stat" + (p.done === p.total ? " ok" : "");
+    s.innerHTML = `${p.sem.label} <b>${p.done}/${p.total}</b>`;
+    box.appendChild(s);
+  });
+}
+
+function renderPanel(){
+  const sem = SEMESTERS.find(s => s.key === activeTab);
+  const {total, done} = semCounts(sem);
+
+  document.getElementById("panelTitle").textContent = sem.fullLabel;
+  document.getElementById("panelProgressLabel").textContent = `${done} of ${total} verified`;
+  document.getElementById("panelProgressFill").style.width = total ? `${(done/total)*100}%` : "0%";
+
+  const list = document.getElementById("subjectList");
+  list.innerHTML = "";
+  
+  sem.subjects.forEach(([code, name], index) => {
+    const checked = state[sem.key][index];
+    const row = document.createElement("label");
+    row.className = "row" + (checked ? " checked" : "");
+    row.innerHTML = `
+      <input type="checkbox" class="checkbox" ${checked ? "checked" : ""} data-index="${index}">
+      <span class="code" title="${code}">${code}</span>
+      <span class="name" title="${name}">${name}</span>
+      <span class="status-pill">${checked ? "Created" : "Pending"}</span>
+    `;
+    const cb = row.querySelector("input");
+    
+    cb.addEventListener("change", () => {
+      state[sem.key][index] = cb.checked;
+      scheduleSave();
+      render();
+    });
+    list.appendChild(row);
+  });
+}
+
+function render(){
+  renderTabs();
+  renderOverallStats();
+  renderPanel();
+}
+
+document.getElementById("markAllBtn").addEventListener("click", () => {
+  const sem = SEMESTERS.find(s => s.key === activeTab);
+  sem.subjects.forEach((_, index) => state[sem.key][index] = true);
+  scheduleSave();
+  render();
+});
+
+document.getElementById("clearAllBtn").addEventListener("click", () => {
+  const sem = SEMESTERS.find(s => s.key === activeTab);
+  sem.subjects.forEach((_, index) => state[sem.key][index] = false);
+  scheduleSave();
+  render();
+});
+
+loadState();
+</script>
+</body>
+</html>
